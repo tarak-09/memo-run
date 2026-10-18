@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { saveCache } from './cache.js';
 
-export function runCommandAndCache(command: string[], hash: string): Promise<number | null> {
+export function runCommandAndCache(command: string[], hash: string, outputsGlob?: string): Promise<number | null> {
     return new Promise((resolve, reject) => {
         const [cmd, ...args] = command;
         if (!cmd) {
@@ -33,7 +33,7 @@ export function runCommandAndCache(command: string[], hash: string): Promise<num
 
         child.on('close', async (code) => {
             try {
-                await saveCache(hash, code, stdoutData, stderrData);
+                await saveCache(hash, code, stdoutData, stderrData, outputsGlob);
                 resolve(code);
             } catch (err) {
                 reject(err);

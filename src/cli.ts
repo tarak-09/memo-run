@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { computeHash } from './hash.js';
-import { checkCache, getCache, saveCache } from './cache.js';
+import { checkCache, getCache } from './cache.js';
 import { runCommandAndCache } from './exec.js';
 
 async function main() {
@@ -9,7 +9,7 @@ async function main() {
     
     if (dashDashIndex === -1) {
         console.error("Error: You must use '--' to separate cache-cmd options from the command to run.");
-        console.error("Usage: cache-cmd -i \"src/**/*.ts\" -- tsc");
+        console.error("Usage: cache-cmd -i \"src/**/*.ts\" -o \"dist/**/*.js\" -- tsc");
         process.exit(1);
     }
 
@@ -17,16 +17,20 @@ async function main() {
     const command = args.slice(dashDashIndex + 1);
 
     let inputs = '';
+    let outputs = '';
     for (let i = 0; i < cacheArgs.length; i++) {
         if (cacheArgs[i] === '-i' || cacheArgs[i] === '--inputs') {
             inputs = cacheArgs[i + 1];
+            i++;
+        } else if (cacheArgs[i] === '-o' || cacheArgs[i] === '--outputs') {
+            outputs = cacheArgs[i + 1];
             i++;
         }
     }
 
     if (!inputs) {
         console.error("Error: --inputs (-i) glob pattern is required.");
-        console.error("Usage: cache-cmd -i \"src/**/*.ts\" -- tsc");
+        console.error("Usage: cache-cmd -i \"src/**/*.ts\" -o \"dist/**/*.js\" -- tsc");
         process.exit(1);
     }
 
@@ -46,7 +50,7 @@ async function main() {
                 process.exit(entry.exitCode);
             }
         } else {
-            const code = await runCommandAndCache(command, hash);
+            const code = await runCommandAndCache(command, hash, outputs);
             if (code !== null) {
                 process.exit(code);
             }

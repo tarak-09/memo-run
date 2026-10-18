@@ -5,7 +5,7 @@
 ## Why it exists
 
 In modern web development, many commands (like linters, type checkers, or bundlers) produce identical outputs given identical inputs. Repeatedly executing these commands on unchanged source files wastes valuable time. `cache-cmd` solves this by calculating a composite SHA-256 hash of your command string and the contents of all input files matching a glob pattern. 
-- **Cache Hit**: Replays the previously captured `stdout`, `stderr`, and exit code.
+- **Cache Hit**: Replays the previously captured `stdout`, `stderr`, and exit code. If you configured output artifacts, they are seamlessly restored to the working directory.
 - **Cache Miss**: Spawns the underlying command, streams its output to your terminal, and saves the results in a local `.cmd-cache/` directory.
 
 ## Installation
@@ -22,15 +22,16 @@ npm run build
 ## Usage
 
 ```bash
-node dist/cli.js -i <glob_pattern> -- <command>
+node dist/cli.js -i <glob_pattern> [-o <outputs_glob>] -- <command>
 ```
 Or if linked/installed globally:
 ```bash
-cache-cmd -i "src/**/*.ts" -- tsc --noEmit
+cache-cmd -i "src/**/*.ts" -o "dist/**/*.js" -- tsc
 ```
 
 ### Options
 - `-i, --inputs`: A glob pattern of input files to hash against. The hash is deterministic based on the command, file names, and file contents.
+- `-o, --outputs`: (Optional) A glob pattern of output files to cache. On a successful run, these files are saved to the cache directory. On a cache hit, they are restored to your workspace.
 - `--`: Separates the `cache-cmd` arguments from the command you want to execute. This is strictly required.
 
 ## Worked Example
@@ -39,14 +40,14 @@ Suppose you have a script that takes 5 seconds to run on `src/**/*.ts` files.
 
 1. **First Run (Cache Miss):**
 ```bash
-$ node dist/cli.js -i "src/**/*.ts" -- npm run lint
+$ node dist/cli.js -i "src/**/*.ts" -o "dist/**/*.js" -- tsc
 # (Takes 5 seconds to run, output is printed, and saved to `.cmd-cache`)
 ```
 
 2. **Second Run (Cache Hit):**
 ```bash
-$ node dist/cli.js -i "src/**/*.ts" -- npm run lint
-# (Outputs instantly! Replays stdout, stderr, and exit code directly from `.cmd-cache`)
+$ node dist/cli.js -i "src/**/*.ts" -o "dist/**/*.js" -- tsc
+# (Outputs instantly! Replays stdout, stderr, and exit code directly from `.cmd-cache`, and restores the `dist/` files.)
 ```
 
 If you modify any file matching `src/**/*.ts`, the hash changes, triggering a fresh cache miss and re-evaluating the underlying command.
@@ -65,6 +66,7 @@ npm run test:watch
 
 ## Architecture
 
-- Uses `fast-glob` to rapidly assemble the list of target files.
+- Uses `fast-glob` to rapidly assemble the list of target files and outputs.
 - Employs Node's built-in `node:crypto` streams for generating hashes of large files without reading them entirely into memory.
 - Intercepts child process `stdio` efficiently via `pipe`.
+- Copies cache artifacts using `node:fs/promises` native copy functions.
